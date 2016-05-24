@@ -10,6 +10,13 @@
 #include "caffe/util/math_functions.hpp"
 #include "caffe/util/rng.hpp"
 
+#include <opencv2/core/core.hpp>
+#include <opencv2/core/mat.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#define PI 3.14159265358979323846
+#include <math.h>
+
 namespace caffe {
 
 template<typename Dtype>
@@ -222,19 +229,176 @@ void DataTransformer<Dtype>::Transform(const vector<cv::Mat> & mat_vector,
   }
 }
 
+void rotate(cv::Mat& src, int angle) {
+    // get rotation matrix for rotating the image around its center
+    cv::Point2f center(src.cols / 2.0, src.rows / 2.0);
+    cv::Mat rot = cv::getRotationMatrix2D(center, angle, 1.0);
+    // determine bounding rectangle
+    cv::Rect bbox = cv::RotatedRect(center, src.size(), angle).boundingRect();
+    // adjust transformation matrix
+    rot.at<double>(0, 2) += bbox.width / 2.0 - center.x;
+    rot.at<double>(1, 2) += bbox.height / 2.0 - center.y;
+    cv::warpAffine(src, src, rot, bbox.size());
+}
+
+void crop(cv::Mat& cv_img, int crop_size) {
+    int h_off = 0;
+    int w_off = 0;
+    const int img_height = cv_img.rows;
+    const int img_width = cv_img.cols;
+    h_off = (img_height - crop_size) / 2;
+    w_off = (img_width - crop_size) / 2;
+    cv::Rect roi(w_off, h_off, crop_size, crop_size);
+    cv_img = cv_img(roi);
+}
+
+void crop_center(cv::Mat& cv_img, int w, int h) {
+    int h_off = 0;
+    int w_off = 0;
+    const int img_height = cv_img.rows;
+    const int img_width = cv_img.cols;
+    h_off = (img_height - h) / 2;
+    w_off = (img_width - w) / 2;
+    cv::Rect roi(w_off, h_off, w, h);
+    cv_img = cv_img(roi);
+}
+
+void resize(cv::Mat& cv_img, int smallest_side) {
+    int cur_width = cv_img.cols;
+    int cur_rows = cv_img.rows;
+    cv::Size dsize;
+    if (cur_rows <= cur_width) {
+        double k = double(cur_rows) / smallest_side;
+        int new_size = (int) ceil(cur_width / k);
+        dsize = cv::Size(new_size, smallest_side);
+    }
+    else {
+        double k = double(cur_width) / smallest_side;
+        int new_size = (int) ceil(cur_rows / k);
+        dsize = cv::Size(smallest_side, new_size);
+    }
+    cv::resize(cv_img, cv_img, dsize);
+}
+
+void rotate_crop(cv::Mat& img, int degrees){
+    double angle = degrees * (PI / 180.0);
+    int w = img.cols;
+    int h = img.rows;
+    if (w <= 0 || h <= 0)
+        return ;
+
+    bool width_is_longer = w >= h;
+    double side_long, side_short;
+    if (width_is_longer) {
+        side_long = w;
+        side_short = h;
+    } else {
+        side_long = h;
+        side_short = w;
+    }
+    double sin_a = fabs(sin(angle));
+    double cos_a = fabs(cos(angle));
+    double wr, hr = 0;
+    if (side_short <= 2.*sin_a*cos_a*side_long) {
+        double x = 0.5*side_short;
+        if (width_is_longer) {
+            wr = x/sin_a;
+            hr = x/cos_a;
+        } else {
+            wr = x/cos_a;
+            hr = x/sin_a;
+        }
+
+    }
+    else {
+        double cos_2a = cos_a*cos_a - sin_a*sin_a;
+        wr = (w*cos_a - h*sin_a)/cos_2a;
+        hr = (h*cos_a - w*sin_a)/cos_2a;
+    }
+    rotate(img, degrees);
+    crop_center(img, (int)wr, (int)hr);
+}
+
+
 template<typename Dtype>
-void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
+void DataTransformer<Dtype>::Transform(const cv::Mat& img,
                                        Blob<Dtype>* transformed_blob) {
+  const int min_side = param_.min_side();
   const int crop_size = param_.crop_size();
-  const int img_channels = cv_img.channels();
-  const int img_height = cv_img.rows;
-  const int img_width = cv_img.cols;
+  const bool contrast_adjustment = param_.contrast_adjustment();
+  const bool smooth_filtering = param_.smooth_filtering();
+  const float rotation_angle = param_.rotation_angle();
+  const float min_alpha = param_.min_alpha();
+  const float max_alpha = param_.max_alpha();
+  const float max_smooth = param_.max_smooth();
 
   // Check dimensions.
   const int channels = transformed_blob->channels();
   const int height = transformed_blob->height();
   const int width = transformed_blob->width();
   const int num = transformed_blob->num();
+
+  const Dtype scale = param_.scale();
+  const bool do_mirror = param_.mirror() && Rand(2);
+  const bool has_mean_file = param_.has_mean_file();
+  const bool has_mean_values = mean_values_.size() > 0;
+
+  cv::Mat cv_img = img;
+
+  if (phase_ == TRAIN) {
+    int current_angle = Rand(rotation_angle*2 + 1) - rotation_angle;
+    // rotate
+    if (rotation_angle && current_angle)
+      rotate_crop(cv_img, current_angle);
+  }
+
+  //resizing and crop according to min side, preserving aspect ratio
+  if (min_side) {
+     resize(cv_img, min_side);
+     crop(cv_img, min_side);
+  }
+
+  if (phase_ == TRAIN) {
+    // adjust contrast
+    if (contrast_adjustment && Rand(2)){
+        cv::RNG rng;
+        float alpha = rng.uniform(min_alpha, max_alpha);
+        float beta = (float) Rand(6);
+        // flip sign
+        if (Rand(2)) beta = -beta;
+        cv_img.convertTo(cv_img, -1, alpha, beta);
+    }
+
+    if (smooth_filtering && Rand(2) && max_smooth > 1) {
+      int smooth_type = Rand(4);
+      int smooth_param = 1 + 2 * Rand(max_smooth/2);
+      switch (smooth_type) {
+          case 0:
+              //cv::Smooth(cv_img, cv_img, smooth_type, smooth_param1);
+              cv::GaussianBlur(cv_img, cv_img, cv::Size(smooth_param, smooth_param), 0);
+              break;
+          case 1:
+              cv::blur(cv_img, cv_img, cv::Size(smooth_param, smooth_param));
+              break;
+          case 2:
+              cv::medianBlur(cv_img, cv_img, smooth_param);
+              break;
+          case 3:
+              cv::boxFilter(cv_img, cv_img, -1, cv::Size(smooth_param * 2, smooth_param * 2));
+              break;
+          default:
+              break;
+      }
+    }
+  }
+
+  const int img_channels = cv_img.channels();
+  const int img_height = cv_img.rows;
+  const int img_width = cv_img.cols;
+
+  CHECK_GT(img_channels, 0);
+  CHECK_GE(img_height, crop_size);
+  CHECK_GE(img_width, crop_size);
 
   CHECK_EQ(channels, img_channels);
   CHECK_LE(height, img_height);
@@ -243,14 +407,6 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
 
   CHECK(cv_img.depth() == CV_8U) << "Image data type must be unsigned byte";
 
-  const Dtype scale = param_.scale();
-  const bool do_mirror = param_.mirror() && Rand(2);
-  const bool has_mean_file = param_.has_mean_file();
-  const bool has_mean_values = mean_values_.size() > 0;
-
-  CHECK_GT(img_channels, 0);
-  CHECK_GE(img_height, crop_size);
-  CHECK_GE(img_width, crop_size);
 
   Dtype* mean = NULL;
   if (has_mean_file) {

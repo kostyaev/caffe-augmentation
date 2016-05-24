@@ -425,6 +425,16 @@ message TransformationParameter {
   optional bool force_color = 6 [default = false];
   // Force the decoded image to have 1 color channels.
   optional bool force_gray = 7 [default = false];
+  //Specify the range of scaling factor for doing resizing
+  optional float min_scaling_factor = 8 [default = 0.75];
+  optional float max_scaling_factor = 9 [default = 1.50];
+  optional float rotation_angle = 10 [default = 0];
+  optional bool contrast_adjustment = 11 [default = false];
+  optional bool smooth_filtering = 12 [default = false];
+  optional float min_side = 13 [default = 0];
+  optional float min_alpha = 14 [default = 0.8];
+  optional float max_alpha = 15 [default = 1.2];
+  optional float max_smooth = 16 [default = 6];
 }
 
 // Message that stores parameters shared by loss layers
