@@ -1,4 +1,13 @@
 # Caffe Augmentation Extension
+This is a recent caffe version (2016/05/25, 4bf4b18607) with additional transformation options in ImageData layer. The following transformations have been added to support:
+
+* min_side - resize and crop preserving aspect ratio
+* rotation_angle - max angle for an image rotation
+* contrast_adjustment - enable/disable contrast adjustment
+* min_alpha - min contrast multiplier
+* max_alpha - min contrast multiplier
+* smooth_filtering - enable/disable smooth filterion
+* max_smooth - max blur multiplier
 
 ## How to use
 You could specify your network prototxt as:
@@ -12,20 +21,11 @@ You could specify your network prototxt as:
       phase: TRAIN
     }
     transform_param {
-      mirror: true
-      crop_size: 227
-      mean_file: "/home/your/imagenet_mean.binaryproto"
-      contrast_adjustment: true
-      smooth_filtering: true
-      jpeg_compression: true
-      rotation_angle: 30
-    }
-    transform_param {
         mirror: false
         contrast_adjustment: true
         smooth_filtering: true
         rotation_angle: 10
-        min_side: 240
+        min_side: 256
         crop_size: 224
         mean_file: "/home/your/imagenet_mean.binaryproto"
         min_alpha: 0.8
@@ -36,8 +36,6 @@ You could specify your network prototxt as:
       source: "/home/your/image/list.txt"
       batch_size: 32
       shuffle: true
-      new_height: 256
-      new_width: 256
     }
     }
 
