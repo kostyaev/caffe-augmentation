@@ -1,13 +1,16 @@
 # Caffe Augmentation Extension
 This is a recent caffe version (2016/05/25, 4bf4b18607) with additional transformation options in ImageData layer. The following transformations have been added to support:
 
-* min_side - resize and crop preserving aspect ratio
-* rotation_angle - max angle for an image rotation
-* contrast_adjustment - enable/disable contrast adjustment
-* min_alpha - min contrast multiplier
-* max_alpha - min contrast multiplier
-* smooth_filtering - enable/disable smooth filterion
-* max_smooth - max blur multiplier
+* min_side - resize and crop preserving aspect ratio, default 0 (disabled);
+* max_rotation_angle - max angle for an image rotation, default 0;
+* contrast_brightness_adjustment - enable/disable contrast adjustment, default false;
+* smooth_filtering - enable/disable smooth filterion, default false;
+* min_contrast - min contrast multiplier (min [alpha](http://docs.opencv.org/2.4/doc/tutorials/core/basic_linear_transform/basic_linear_transform.html)), default 0.8;
+* max_contrast - min contrast multiplier (max [alpha](http://docs.opencv.org/2.4/doc/tutorials/core/basic_linear_transform/basic_linear_transform.html)), default 1.2;
+* max_brightness_shift - max brightness shift in positive and negative directions ([beta](http://docs.opencv.org/2.4/doc/tutorials/core/basic_linear_transform/basic_linear_transform.html)), default 5;
+* max_smooth - max smooth multiplier, default 6;
+* apply_probability - how often every transformation should be applied, default 0.5;
+* debug_params - enable/disable printing tranformation parameters, default false;
 
 ## How to use
 You could specify your network prototxt as:
@@ -22,15 +25,17 @@ You could specify your network prototxt as:
     }
     transform_param {
         mirror: false
-        contrast_adjustment: true
+        contrast_brightness_adjustment: true
         smooth_filtering: true
-        rotation_angle: 10
+        max_rotation_angle: 10
         min_side: 256
         crop_size: 224
         mean_file: "/home/your/imagenet_mean.binaryproto"
-        min_alpha: 0.8
-        max_alpha: 1.2
+        min_contrast: 0.8
+        max_contrast: 1.2
         max_smooth: 6
+        apply_probability: 0.5
+        debug_params: false
     }
     image_data_param {
       source: "/home/your/image/list.txt"
