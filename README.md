@@ -3,7 +3,7 @@ This is a recent caffe version (2016/05/25, 4bf4b18607) with additional transfor
 
 * min_side - resize and crop preserving aspect ratio, default 0 (disabled);
 * max_rotation_angle - max angle for an image rotation, default 0;
-* contrast_adjustment - enable/disable contrast adjustment, default false;
+* contrast_brightness_adjustment - enable/disable contrast adjustment, default false;
 * smooth_filtering - enable/disable smooth filterion, default false;
 * min_contrast - min contrast multiplier (min [alpha](http://docs.opencv.org/2.4/doc/tutorials/core/basic_linear_transform/basic_linear_transform.html)), default 0.8;
 * max_contrast - min contrast multiplier (max [alpha](http://docs.opencv.org/2.4/doc/tutorials/core/basic_linear_transform/basic_linear_transform.html)), default 1.2;
@@ -25,15 +25,17 @@ You could specify your network prototxt as:
     }
     transform_param {
         mirror: false
-        contrast_adjustment: true
+        contrast_brightness_adjustment: true
         smooth_filtering: true
-        rotation_angle: 10
+        max_rotation_angle: 10
         min_side: 256
         crop_size: 224
         mean_file: "/home/your/imagenet_mean.binaryproto"
-        min_alpha: 0.8
-        max_alpha: 1.2
+        min_contrast: 0.8
+        max_contrast: 1.2
         max_smooth: 6
+        apply_probability: 0.5
+        debug_params: false
     }
     image_data_param {
       source: "/home/your/image/list.txt"
