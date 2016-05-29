@@ -334,7 +334,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
   const int max_brightness_shift = param_.max_brightness_shift();
   const float max_smooth = param_.max_smooth();
   const float apply_prob = param_.apply_probability();
-  const bool debug_params = param_.debugs_params();
+  const bool debug_params = param_.debug_params();
 
   // Check dimensions.
   const int channels = transformed_blob->channels();
@@ -353,13 +353,13 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 
   const bool do_resize_to_min_side = min_side > 0;
 
-  caffe_rng_uniform(1, 0.0, 1.0, &current_prob);
+  caffe_rng_uniform(1, 0.f, 1.f, &current_prob);
   const bool do_mirror = param_.mirror() && phase_ == TRAIN && current_prob > apply_prob;
 
-  caffe_rng_uniform(1, 0.0, 1.0, &current_prob);
+  caffe_rng_uniform(1, 0.f, 1.f, &current_prob);
   const bool do_brightness = param_.contrast_brightness_adjustment() && phase_ == TRAIN && current_prob > apply_prob;
 
-  caffe_rng_uniform(1, 0.0, 1.0, &current_prob);
+  caffe_rng_uniform(1, 0.f, 1.f, &current_prob);
   const bool do_smooth = param_.smooth_filtering() && phase_ == TRAIN && current_prob > apply_prob;
 
 
@@ -385,6 +385,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
       caffe_rng_uniform(1, min_contrast, max_contrast, &alpha);
       beta = Rand(max_brightness_shift * 2 + 1) - max_brightness_shift;
       cv_img.convertTo(cv_img, -1, alpha, beta);
+  }
 
   // set smoothness
   int smooth_param;
@@ -410,7 +411,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
     }
   }
 
-  if (debug_params && phase_ == Caffe::TRAIN) {
+  if (debug_params && phase_ == TRAIN) {
     LOG(INFO) << "----------------------------------------";
 
     if (do_rotation) {
