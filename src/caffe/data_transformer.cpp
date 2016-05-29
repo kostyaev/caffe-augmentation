@@ -332,7 +332,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
   const float max_contrast = param_.max_contrast();
   const int max_brightness_shift = param_.max_brightness_shift();
   const float max_smooth = param_.max_smooth();
-  const float apply_prob = param_.apply_probability();
+  const float apply_prob = 1.f - param_.apply_probability();
   const bool debug_params = param_.debug_params();
 
   // Check dimensions.
@@ -355,10 +355,10 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
   const bool do_mirror = param_.mirror() && phase_ == TRAIN && Rand(2);
 
   caffe_rng_uniform(1, 0.f, 1.f, &current_prob);
-  const bool do_brightness = param_.contrast_brightness_adjustment() && phase_ == TRAIN && current_prob > 1-apply_prob;
+  const bool do_brightness = param_.contrast_brightness_adjustment() && phase_ == TRAIN && current_prob > apply_prob;
 
   caffe_rng_uniform(1, 0.f, 1.f, &current_prob);
-  const bool do_smooth = param_.smooth_filtering() && phase_ == TRAIN && max_smooth > 1 && current_prob > 1-apply_prob;
+  const bool do_smooth = param_.smooth_filtering() && phase_ == TRAIN && max_smooth > 1 && current_prob >  apply_prob;
 
 
   cv::Mat cv_img = img;
@@ -386,8 +386,8 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
   }
 
   // set smoothness
-  int smooth_param;
-  int smooth_type;
+  int smooth_param = 0;
+  int smooth_type = 0;
   if (do_smooth) {
     smooth_type = Rand(4);
     smooth_param = 1 + 2 * Rand(max_smooth/2);
