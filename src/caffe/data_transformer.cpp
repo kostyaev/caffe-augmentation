@@ -352,14 +352,13 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 
   const bool do_resize_to_min_side = min_side > 0;
 
-  caffe_rng_uniform(1, 0.f, 1.f, &current_prob);
-  const bool do_mirror = param_.mirror() && phase_ == TRAIN && current_prob > apply_prob;
+  const bool do_mirror = param_.mirror() && phase_ == TRAIN && Rand(2);
 
   caffe_rng_uniform(1, 0.f, 1.f, &current_prob);
-  const bool do_brightness = param_.contrast_brightness_adjustment() && phase_ == TRAIN && current_prob > apply_prob;
+  const bool do_brightness = param_.contrast_brightness_adjustment() && phase_ == TRAIN && current_prob > 1-apply_prob;
 
   caffe_rng_uniform(1, 0.f, 1.f, &current_prob);
-  const bool do_smooth = param_.smooth_filtering() && phase_ == TRAIN && max_smooth > 1 && current_prob > apply_prob;
+  const bool do_smooth = param_.smooth_filtering() && phase_ == TRAIN && max_smooth > 1 && current_prob > 1-apply_prob;
 
 
   cv::Mat cv_img = img;
