@@ -14,8 +14,10 @@
 #include <opencv2/core/mat.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-#define PI 3.14159265358979323846
 #include <math.h>
+
+#define PI 3.14159265358979323846
+
 
 namespace caffe {
 
@@ -325,12 +327,14 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
                                        Blob<Dtype>* transformed_blob) {
   const int min_side = param_.min_side();
   const int crop_size = param_.crop_size();
-  const bool contrast_adjustment = param_.contrast_adjustment();
   const bool smooth_filtering = param_.smooth_filtering();
-  const float rotation_angle = param_.rotation_angle();
-  const float min_alpha = param_.min_alpha();
-  const float max_alpha = param_.max_alpha();
+  const int rotation_angle = param_.max_rotation_angle();
+  const float min_contrast = param_.min_contrast();
+  const float max_contrast = param_.max_contrast();
+  const int max_brightness_shift = param_.max_brightness_shift();
   const float max_smooth = param_.max_smooth();
+  const float apply_prob = param_.apply_probability();
+  const bool debug_params = param_.debugs_params();
 
   // Check dimensions.
   const int channels = transformed_blob->channels();
@@ -339,57 +343,88 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
   const int num = transformed_blob->num();
 
   const Dtype scale = param_.scale();
-  const bool do_mirror = param_.mirror() && Rand(2);
   const bool has_mean_file = param_.has_mean_file();
   const bool has_mean_values = mean_values_.size() > 0;
 
+
+  float current_prob;
+
+  const bool do_rotation = rotation_angle > 0 && phase_ == TRAIN;
+
+  const bool do_resize_to_min_side = min_side > 0;
+
+  caffe_rng_uniform(1, 0.0, 1.0, &current_prob);
+  const bool do_mirror = param_.mirror() && phase_ == TRAIN && current_prob > apply_prob;
+
+  caffe_rng_uniform(1, 0.0, 1.0, &current_prob);
+  const bool do_brightness = param_.contrast_brightness_adjustment() && phase_ == TRAIN && current_prob > apply_prob;
+
+  caffe_rng_uniform(1, 0.0, 1.0, &current_prob);
+  const bool do_smooth = param_.smooth_filtering() && phase_ == TRAIN && current_prob > apply_prob;
+
+
   cv::Mat cv_img = img;
 
-  if (phase_ == TRAIN) {
-    int current_angle = Rand(rotation_angle*2 + 1) - rotation_angle;
-    // rotate
-    if (rotation_angle && current_angle)
+  int current_angle = 0;
+  if (do_rotation) {
+    current_angle = Rand(rotation_angle*2 + 1) - rotation_angle;
+    if (current_angle)
       rotate_crop(cv_img, current_angle);
   }
 
-  //resizing and crop according to min side, preserving aspect ratio
-  if (min_side) {
+  // resizing and crop according to min side, preserving aspect ratio
+  if (do_resize_to_min_side) {
      resize(cv_img, min_side);
      crop(cv_img, min_side);
   }
 
-  if (phase_ == TRAIN) {
-    // adjust contrast
-    if (contrast_adjustment && Rand(2)){
-        cv::RNG rng;
-        float alpha = rng.uniform(min_alpha, max_alpha);
-        float beta = (float) Rand(6);
-        // flip sign
-        if (Rand(2)) beta = -beta;
-        cv_img.convertTo(cv_img, -1, alpha, beta);
-    }
+  // set contrast and brightness
+  float alpha;
+  int beta;
+  if (do_brightness){
+      caffe_rng_uniform(1, min_contrast, max_contrast, &alpha);
+      beta = Rand(max_brightness_shift * 2 + 1) - max_brightness_shift;
+      cv_img.convertTo(cv_img, -1, alpha, beta);
 
-    if (smooth_filtering && Rand(2) && max_smooth > 1) {
-      int smooth_type = Rand(4);
-      int smooth_param = 1 + 2 * Rand(max_smooth/2);
-      switch (smooth_type) {
-          case 0:
-              //cv::Smooth(cv_img, cv_img, smooth_type, smooth_param1);
-              cv::GaussianBlur(cv_img, cv_img, cv::Size(smooth_param, smooth_param), 0);
-              break;
-          case 1:
-              cv::blur(cv_img, cv_img, cv::Size(smooth_param, smooth_param));
-              break;
-          case 2:
-              cv::medianBlur(cv_img, cv_img, smooth_param);
-              break;
-          case 3:
-              cv::boxFilter(cv_img, cv_img, -1, cv::Size(smooth_param * 2, smooth_param * 2));
-              break;
-          default:
-              break;
-      }
+  // set smoothness
+  int smooth_param;
+  int smooth_type;
+  if (do_smooth && max_smooth > 1) {
+    smooth_type = Rand(4);
+    smooth_param = 1 + 2 * Rand(max_smooth/2);
+    switch (smooth_type) {
+        case 0:
+            cv::GaussianBlur(cv_img, cv_img, cv::Size(smooth_param, smooth_param), 0);
+            break;
+        case 1:
+            cv::blur(cv_img, cv_img, cv::Size(smooth_param, smooth_param));
+            break;
+        case 2:
+            cv::medianBlur(cv_img, cv_img, smooth_param);
+            break;
+        case 3:
+            cv::boxFilter(cv_img, cv_img, -1, cv::Size(smooth_param * 2, smooth_param * 2));
+            break;
+        default:
+            break;
     }
+  }
+
+  if (debug_params && phase_ == Caffe::TRAIN) {
+    LOG(INFO) << "----------------------------------------";
+
+    if (do_rotation) {
+        LOG(INFO) << "* parameter for rotation: ";
+        LOG(INFO) << "  current rotation angle: " << current_angle;
+    }
+    if (do_brightness) {
+	  LOG(INFO) << "* parameter for contrast adjustment: ";
+	  LOG(INFO) << "  alpha: " << alpha << ", beta: " << beta;
+	}
+    if (do_smooth) {
+      LOG(INFO) << "* parameter for smooth filtering: ";
+	  LOG(INFO) << "  smooth type: " << smooth_type << ", smooth param: " << smooth_param;
+	}
   }
 
   const int img_channels = cv_img.channels();
@@ -695,6 +730,8 @@ int DataTransformer<Dtype>::Rand(int n) {
       static_cast<caffe::rng_t*>(rng_->generator());
   return ((*rng)() % n);
 }
+
+
 
 INSTANTIATE_CLASS(DataTransformer);
 
