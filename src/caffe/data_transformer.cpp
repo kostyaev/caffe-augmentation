@@ -267,16 +267,16 @@ void crop_center(cv::Mat& cv_img, int w, int h) {
 
 void resize(cv::Mat& cv_img, int smallest_side) {
     int cur_width = cv_img.cols;
-    int cur_rows = cv_img.rows;
+    int cur_height = cv_img.rows;
     cv::Size dsize;
-    if (cur_rows <= cur_width) {
-        double k = double(cur_rows) / smallest_side;
+    if (cur_height <= cur_width) {
+        double k = ((double)cur_height) / smallest_side;
         int new_size = (int) ceil(cur_width / k);
         dsize = cv::Size(new_size, smallest_side);
     }
     else {
-        double k = double(cur_width) / smallest_side;
-        int new_size = (int) ceil(cur_rows / k);
+        double k = ((double)cur_width) / smallest_side;
+        int new_size = (int) ceil(cur_height / k);
         dsize = cv::Size(smallest_side, new_size);
     }
     cv::resize(cv_img, cv_img, dsize);
@@ -685,8 +685,10 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(const cv::Mat& cv_img) {
   const int img_width = cv_img.cols;
   // Check dimensions.
   CHECK_GT(img_channels, 0);
-  CHECK_GE(img_height, crop_size);
-  CHECK_GE(img_width, crop_size);
+  if (param_.min_side() == 0) {
+    CHECK_GE(img_height, crop_size);
+    CHECK_GE(img_width, crop_size);
+  }
   // Build BlobShape.
   vector<int> shape(4);
   shape[0] = 1;
