@@ -46,11 +46,22 @@ You could specify your network prototxt as:
 
 
 ## Setup caffe-augmentation
-Adjust Makefile.config and simply run the following commands:
+There are two options:
 
-    $ make all -j8
-    $ make test -j8
-    $ make runtest -j8
+1. Pull and run docker container: 
+  
+    ```$ docker pull kostyaev/caffe-gpu```
+
+    ```$ nvidia-docker run -it kostyaev/caffe-gpu /bin/bash```
+
+2. Install from source code:
+Clone this repo, adjust Makefile.config and simply run the following commands:
+
+    ```$ make all -j8```
+    
+    ```$ make test -j8```
+    
+    ```$ make runtest -j8```
 
 For a faster build, compile in parallel by doing `make all -j8` where 8 is the number of parallel threads for compilation (a good choice for the number of threads is the number of cores in your machine).
 
