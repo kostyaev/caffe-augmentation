@@ -382,16 +382,16 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 
   // apply color shift
   if (do_color_shift) {
-    int b = Rand(max_color_shift + 1)
-    int g = Rand(max_color_shift + 1)
-    int r = Rand(max_color_shift + 1)
-    int sign = Rand(2)
+    int b = Rand(max_color_shift + 1);
+    int g = Rand(max_color_shift + 1);
+    int r = Rand(max_color_shift + 1);
+    int sign = Rand(2);
 
     Mat shiftArr = cv_img.clone();
     shiftArr.setTo(cv::Scalar(b,g,r));
 
     if (sign == 1) {
-      cv_img -= shiftArr
+      cv_img -= shiftArr;
     } else {
       cv_img += shiftArr;
     }
