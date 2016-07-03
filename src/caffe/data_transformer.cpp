@@ -1,5 +1,10 @@
 #ifdef USE_OPENCV
 #include <opencv2/core/core.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/core/mat.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/opencv.hpp>
 #endif  // USE_OPENCV
 
 #include <string>
@@ -9,11 +14,6 @@
 #include "caffe/util/io.hpp"
 #include "caffe/util/math_functions.hpp"
 #include "caffe/util/rng.hpp"
-
-#include <opencv2/core/core.hpp>
-#include <opencv2/core/mat.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
 #include <math.h>
 
 #define PI 3.14159265358979323846
@@ -332,6 +332,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
   const float max_contrast = param_.max_contrast();
   const int max_brightness_shift = param_.max_brightness_shift();
   const float max_smooth = param_.max_smooth();
+  const int max_color_shift = param_.max_color_shift();
   const float apply_prob = 1.f - param_.apply_probability();
   const bool debug_params = param_.debug_params();
 
@@ -360,6 +361,9 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
   caffe_rng_uniform(1, 0.f, 1.f, &current_prob);
   const bool do_smooth = param_.smooth_filtering() && phase_ == TRAIN && max_smooth > 1 && current_prob >  apply_prob;
 
+  caffe_rng_uniform(1, 0.f, 1.f, &current_prob);
+  const bool do_color_shift = max_color_shift > 0 && phase_ == TRAIN && current_prob > apply_prob;
+
 
   cv::Mat cv_img = img;
 
@@ -374,6 +378,23 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
   if (do_resize_to_min_side) {
      resize(cv_img, min_side);
      crop(cv_img, min_side);
+  }
+
+  // apply color shift
+  if (do_color_shift) {
+    int b = Rand(max_color_shift + 1)
+    int g = Rand(max_color_shift + 1)
+    int r = Rand(max_color_shift + 1)
+    int sign = Rand(2)
+
+    Mat shiftArr = cv_img.clone();
+    shiftArr.setTo(cv::Scalar(b,g,r));
+
+    if (sign == 1) {
+      cv_img -= shiftArr
+    } else {
+      cv_img += shiftArr;
+    }
   }
 
   // set contrast and brightness
