@@ -9,6 +9,7 @@ This is a recent caffe version (2016/05/25, 4bf4b18607) with additional transfor
 * max_contrast - min contrast multiplier (max [alpha](http://docs.opencv.org/2.4/doc/tutorials/core/basic_linear_transform/basic_linear_transform.html)), default 1.2;
 * max_brightness_shift - max brightness shift in positive and negative directions ([beta](http://docs.opencv.org/2.4/doc/tutorials/core/basic_linear_transform/basic_linear_transform.html)), default 5;
 * max_smooth - max smooth multiplier, default 6;
+* max_color_shift - max color shift along RGB axes
 * apply_probability - how often every transformation should be applied, default 0.5;
 * debug_params - enable/disable printing tranformation parameters, default false;
 
@@ -35,6 +36,7 @@ You could specify your network prototxt as:
         max_contrast: 1.2
         max_smooth: 6
         apply_probability: 0.5
+        max_color_shift: 20
         debug_params: false
     }
     image_data_param {
